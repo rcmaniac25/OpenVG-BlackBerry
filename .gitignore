@@ -1,0 +1,10 @@
+#ignore file for Eclipse
+
+# use glob syntax
+syntax: glob
+
+# ignore files
+copy.bat
+*.so
+*.o
+*Device
