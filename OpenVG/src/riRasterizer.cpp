@@ -186,7 +186,7 @@ void Rasterizer::setScissor(const Array<Rectangle>& scissors)
 			}
 		}
 	}
-	catch(std::bad_alloc)
+	catch(std::bad_alloc&)
 	{
 		m_scissorEdges.clear();
 		throw;

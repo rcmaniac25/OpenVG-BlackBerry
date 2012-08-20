@@ -2002,7 +2002,7 @@ void RI_APIENTRY vgRenderToMask(VGPath path, VGbitfield paintModes, VGMaskOperat
             curr->getMaskBuffer()->mask(drawable.getColorBuffer(), operation, 0, 0, drawable.getWidth(), drawable.getHeight());
         }
 
-        if(paintModes & VG_STROKE_PATH && context->m_strokeLineWidth > 0.0f)
+        if((paintModes & VG_STROKE_PATH) && context->m_strokeLineWidth > 0.0f)
         {
             drawable.getColorBuffer()->clear(Color(0,0,0,0,drawable.getColorBuffer()->getDescriptor().internalFormat), 0, 0, drawable.getWidth(), drawable.getHeight());
             renderStroke(context, drawable.getWidth(), drawable.getHeight(), numSamples, (Path*)path, rasterizer, &pixelPipe, userToSurface);
@@ -2395,7 +2395,7 @@ static bool drawPath(VGContext* context, VGPath path, const Matrix3x3& userToSur
 		}
 	}
 
-	if(paintModes & VG_STROKE_PATH && context->m_strokeLineWidth > 0.0f)
+	if((paintModes & VG_STROKE_PATH) && context->m_strokeLineWidth > 0.0f)
 	{
 		pixelPipe.setPaint((Paint*)context->m_strokePaint);
 

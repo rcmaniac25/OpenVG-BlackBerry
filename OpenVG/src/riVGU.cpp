@@ -340,7 +340,7 @@ VGUErrorCode RI_APIENTRY vguArc(VGPath path, VGfloat x, VGfloat y, VGfloat width
 
 VGUErrorCode RI_APIENTRY vguComputeWarpQuadToSquare(VGfloat sx0, VGfloat sy0, VGfloat sx1, VGfloat sy1, VGfloat sx2, VGfloat sy2, VGfloat sx3, VGfloat sy3, VGfloat * matrix)
 {
-	if(!matrix || ((RIuintptr)matrix) & 3)
+	if(!matrix || (((RIuintptr)matrix) & 3))
 		return VGU_ILLEGAL_ARGUMENT_ERROR;
 
 	VGfloat mat[9];
@@ -374,7 +374,7 @@ VGUErrorCode RI_APIENTRY vguComputeWarpQuadToSquare(VGfloat sx0, VGfloat sy0, VG
 
 VGUErrorCode RI_APIENTRY vguComputeWarpSquareToQuad(VGfloat dx0, VGfloat dy0, VGfloat dx1, VGfloat dy1, VGfloat dx2, VGfloat dy2, VGfloat dx3, VGfloat dy3, VGfloat * matrix)
 {
-	if(!matrix || ((RIuintptr)matrix) & 3)
+	if(!matrix || (((RIuintptr)matrix) & 3))
 		return VGU_ILLEGAL_ARGUMENT_ERROR;
 
 	//from Heckbert:Fundamentals of Texture Mapping and Image Warping
@@ -435,7 +435,7 @@ VGUErrorCode RI_APIENTRY vguComputeWarpSquareToQuad(VGfloat dx0, VGfloat dy0, VG
 
 VGUErrorCode RI_APIENTRY vguComputeWarpQuadToQuad(VGfloat dx0, VGfloat dy0, VGfloat dx1, VGfloat dy1, VGfloat dx2, VGfloat dy2, VGfloat dx3, VGfloat dy3, VGfloat sx0, VGfloat sy0, VGfloat sx1, VGfloat sy1, VGfloat sx2, VGfloat sy2, VGfloat sx3, VGfloat sy3, VGfloat * matrix)
 {
-	if(!matrix || ((RIuintptr)matrix) & 3)
+	if(!matrix || (((RIuintptr)matrix) & 3))
 		return VGU_ILLEGAL_ARGUMENT_ERROR;
 
 	VGfloat qtos[9];

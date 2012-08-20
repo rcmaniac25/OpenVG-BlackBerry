@@ -1183,7 +1183,7 @@ void Path::fill(const Matrix3x3& pathToSurface, Rasterizer& rasterizer)
 			p0 = p1;
 		}
 	}
-	catch(std::bad_alloc)
+	catch(std::bad_alloc&)
 	{
 		rasterizer.clear();	//remove the unfinished path
 		throw;
@@ -1637,7 +1637,7 @@ void Path::stroke(const Matrix3x3& pathToSurface, Rasterizer& rasterizer, const 
 			v0 = v1;
 		}
 	}
-	catch(std::bad_alloc)
+	catch(std::bad_alloc&)
 	{
 		rasterizer.clear();	//remove the unfinished path
 		throw;
@@ -2565,7 +2565,7 @@ void Path::tessellate(const Matrix3x3& pathToSurface, float strokeWidth)
 		}
 #endif	//RI_DEBUG
 	}
-	catch(std::bad_alloc)
+	catch(std::bad_alloc&)
 	{
 		m_vertices.clear();
 		throw;

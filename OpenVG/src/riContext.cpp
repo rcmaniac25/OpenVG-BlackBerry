@@ -129,7 +129,7 @@ VGContext::VGContext(VGContext* shareContext) :
 			m_fontManager = RI_NEW(OpenVGRI::ResourceManager<Font>, ());	//throws bad_alloc
 			m_maskLayerManager = RI_NEW(OpenVGRI::ResourceManager<Surface>, ());	//throws bad_alloc
 		}
-		catch(std::bad_alloc)
+		catch(std::bad_alloc&)
 		{
 			RI_DELETE(m_imageManager);
 			RI_DELETE(m_pathManager);

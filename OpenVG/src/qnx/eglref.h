@@ -32,6 +32,7 @@ EGLBoolean eglDestroyContext_impl(EGLDisplay dpy, EGLContext ctx);
 EGLBoolean eglTerminate_impl(EGLDisplay dpy);
 EGLBoolean eglReleaseThread_impl();
 EGLBoolean eglSetup(EGLDisplay* display, EGLSurface* surface, EGLContext* context, EGLNativeWindowType window);
+void eglCleanup();
 
 #ifdef __cplusplus
 }

@@ -192,6 +192,7 @@ void OSDestroyWindowContext(void* context)
 			ctx->eglDisp = EGL_NO_DISPLAY;
 		}
 		eglReleaseThread_impl();
+		eglCleanup();
         RI_DELETE_ARRAY(ctx->tmp);
         RI_DELETE(ctx);
     }
@@ -214,7 +215,7 @@ void OSGetWindowSize(const void* context, int& width, int& height)
     if(ctx)
     {
     	int size[2];
-    	screen_get_window_property_iv(ctx->window, SCREEN_PROPERTY_VIEWPORT_SIZE, size);
+    	screen_get_window_property_iv(ctx->window, SCREEN_PROPERTY_BUFFER_SIZE, size);
     	width = size[0];
     	height = size[1];
     }
@@ -274,10 +275,10 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             //Setup GLES
-            static const GLfloat plane[] = {-0.5f, -0.5f,  0.5f,
-            		 0.5f, -0.5f,  0.5f,
-            		-0.5f,  0.5f,  0.5f,
-            		 0.5f,  0.5f,  0.5f};
+            static const GLfloat plane[] = {-1.0f, -1.0f,  1.0f,
+            		 1.0f, -1.0f,  1.0f,
+            		-1.0f,  1.0f,  1.0f,
+            		 1.0f,  1.0f,  1.0f};
             static const GLfloat planeUV[] = {0.0f, 0.0f,
             		 1.0f, 0.0f,
             		 0.0f, 1.0f,

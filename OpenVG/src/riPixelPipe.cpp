@@ -790,7 +790,7 @@ void PixelPipe::pixelPipe(int x, int y, RIfloat coverage, unsigned int sampleMas
             //dst == L   && image == RGB: L*(0.2126 R + 0.7152 G + 0.0722 B)
             //dst == L   && image == L  : L*L
             RI_ASSERT(m_imageMode == VG_DRAW_IMAGE_STENCIL);
-            if(dstFormat & Color::LUMINANCE && !im.isLuminance())
+            if((dstFormat & Color::LUMINANCE) && !im.isLuminance())
             {
                 im.r = im.g = im.b = RI_MIN(0.2126f*im.r + 0.7152f*im.g + 0.0722f*im.b, im.a);
             }

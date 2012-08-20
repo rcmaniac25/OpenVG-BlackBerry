@@ -3,6 +3,7 @@
 	<name>OpenVGTiger</name>
 	<comment></comment>
 	<projects>
+		<project>OpenVG</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
