@@ -36,10 +36,7 @@
 							</tool>
 							<tool id="com.qnx.qcc.tool.assembler.1522698568" name="QCC Assembler" superClass="com.qnx.qcc.tool.assembler">
 								<option id="com.qnx.qcc.option.assembler.debug.1026776453" name="Debug (-g)" superClass="com.qnx.qcc.option.assembler.debug" value="true" valueType="boolean"/>
-								<option id="com.qnx.qcc.option.assembler.includePath.945178555" name="Include Directories (-I)" superClass="com.qnx.qcc.option.assembler.includePath" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/OpenVG/public}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/OpenVG}&quot;"/>
-								</option>
+								<option id="com.qnx.qcc.option.assembler.includePath.945178555" name="Include Directories (-I)" superClass="com.qnx.qcc.option.assembler.includePath" valueType="includePath"/>
 								<inputType id="com.qnx.qcc.inputType.assembler.1217510528" superClass="com.qnx.qcc.inputType.assembler"/>
 							</tool>
 							<tool id="com.qnx.qcc.tool.linker.1865668852" name="QCC Linker" superClass="com.qnx.qcc.tool.linker">
@@ -51,9 +48,9 @@
 									<listOptionValue builtIn="false" value="OpenVG"/>
 								</option>
 								<option id="com.qnx.qcc.option.linker.libraryPaths.2135344246" name="Library Paths (-L)" superClass="com.qnx.qcc.option.linker.libraryPaths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="${QNX_TARGET}/../target-override/${CPUVARDIR}/lib"/>
-									<listOptionValue builtIn="false" value="${QNX_TARGET}/../target-override/${CPUVARDIR}/usr/lib"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/OpenVG/Device-Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${QNX_TARGET}/../target-override/${CPUVARDIR}/lib&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${QNX_TARGET}/../target-override/${CPUVARDIR}/usr/lib&quot;"/>
 								</option>
 								<option id="com.qnx.qcc.option.linker.security.1437010636" name="Enhanced Security (-Wl,-z,relro -Wl,-z,now)" superClass="com.qnx.qcc.option.linker.security" value="true" valueType="boolean"/>
 								<inputType id="com.qnx.qcc.inputType.linker.1479901642" superClass="com.qnx.qcc.inputType.linker">
@@ -499,5 +496,8 @@
 		<scannerConfigBuildInfo instanceId="com.qnx.qcc.configuration.exe.debug.2012071173">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.qnx.tools.ide.qde.managedbuilder.core.qccScannerInfo"/>
 		</scannerConfigBuildInfo>
+	</storageModule>
+	<storageModule moduleId="refreshScope" versionNumber="1">
+		<resource resourceType="PROJECT" workspacePath="/OpenVGTiger"/>
 	</storageModule>
 </cproject>

@@ -30,7 +30,9 @@
  * \note
   *//*-------------------------------------------------------------------*/
 
+#include <math.h>
 #include <EGLimp/egl.h>
+//#include <GLES/glext.h>
 #include "eglref.h"
 #include <screen/screen.h>
 #include "../riImage.h"
@@ -254,6 +256,8 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
 
         if(ctx->tmp)
         {
+        	//This is not memory efficient...
+
             glViewport(0, 0, w, h);
             glDisable(GL_DEPTH_TEST);
             glMatrixMode(GL_PROJECTION);
@@ -267,34 +271,87 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
             vgReadPixels(ctx->tmp, w*sizeof(unsigned int), f, 0, 0, w, h);
 
             //Generate texture
-            GLuint tex;
+            GLuint tex = 0;
             glGenTextures(1, &tex);
             glBindTexture(GL_TEXTURE_2D, tex);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx->tmp);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+#if !defined(GL_OES_texture_npot)
+            int ow = w;
+			int oh = h;
 
-            //Setup GLES
-            static const GLfloat plane[] = {-1.0f, -1.0f,  1.0f,
-            		 1.0f, -1.0f,  1.0f,
-            		-1.0f,  1.0f,  1.0f,
-            		 1.0f,  1.0f,  1.0f};
-            static const GLfloat planeUV[] = {0.0f, 0.0f,
-            		 1.0f, 0.0f,
-            		 0.0f, 1.0f,
-            		 1.0f, 1.0f};
-            glEnable(GL_TEXTURE_2D);
-            glVertexPointer(3, GL_FLOAT, 0, plane);
-			glTexCoordPointer(2, GL_FLOAT, 0, planeUV);
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+            //Calculate next power of 2 (from Clemens: http://acius2.blogspot.com/2007/11/calculating-next-power-of-2.html, I'm pretty sure there is a way to do this without converting to floating point)
+            int next_pow = 1 << (int)ceil(log2(fmax(w, h)));
+            w = h = next_pow;
 
-			glEnable(GL_CULL_FACE);
-			glShadeModel(GL_SMOOTH);
+            //Generate a new texture data
+			unsigned int* tTex = NULL;
+			try
+			{
+				tTex = RI_NEW_ARRAY(unsigned int, w*h);	//throws bad_alloc
+			}
+			catch(std::bad_alloc&)
+			{
+				//do nothing
+			}
 
-			//Draw texture
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-			glFlush();
+			//Clear the texture
+			memset(tTex, 0xFF00FFFF, w*h*sizeof(unsigned int));
+
+			//Copy the texture
+			for(int y = 0; y < ow; y++)
+			{
+				memcpy(tTex + (y * w), ctx->tmp + (y * ow), ow*sizeof(unsigned int));
+			}
+#endif
+            //Allocate the texture
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+#if defined(GL_OES_texture_npot)
+            	ctx->tmp);
+#else
+            tTex);
+
+			//Cleanup texture
+			RI_DELETE_ARRAY(tTex);
+#endif
+            if(glGetError() == GL_NO_ERROR)
+            {
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+				//Setup GLES
+				static const GLfloat plane[12] = {-1.0f, -1.0f,  1.0f,
+						 1.0f, -1.0f,  1.0f,
+						-1.0f,  1.0f,  1.0f,
+						 1.0f,  1.0f,  1.0f};
+#if defined(GL_OES_texture_npot)
+				static const
+#endif
+				GLfloat planeUV[8] = {0.0f, 0.0f,
+						 1.0f, 0.0f,
+						 0.0f, 1.0f,
+						 1.0f, 1.0f};
+
+#if !defined(GL_OES_texture_npot)
+				//Calculate new UV corner
+				planeUV[2] = ((GLfloat)ow) / ((GLfloat)w);
+				planeUV[3] = ((GLfloat)oh) / ((GLfloat)h);
+
+				//Copy over uv value
+				planeUV[6] = planeUV[2]; //Upper right U coord
+				planeUV[1] = planeUV[3]; //Lower left V coord
+#endif
+
+				glEnable(GL_TEXTURE_2D);
+				glVertexPointer(3, GL_FLOAT, 0, plane);
+				glTexCoordPointer(2, GL_FLOAT, 0, planeUV);
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+				glShadeModel(GL_SMOOTH);
+
+				//Draw texture
+				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				glFlush();
+            }
 
 			//Cleanup
 			glDeleteTextures(1, &tex);
