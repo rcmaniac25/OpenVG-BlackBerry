@@ -30,11 +30,15 @@
  * \note
   *//*-------------------------------------------------------------------*/
 
-#include <math.h>
-#include <EGLimp/egl.h>
-#include "eglref.h"
-#include <screen/screen.h>
 #include "../riImage.h"
+#include <EGLimp/egl.h>
+#if defined(GL_BACKEND)
+#include <math.h>
+#include "eglref.h"
+#else
+#include <stdlib.h>
+#endif
+#include <screen/screen.h>
 #include <pthread.h>
 #include <errno.h>
 
@@ -132,21 +136,31 @@ static bool isBigEndian()
 * \note		
 *//*-------------------------------------------------------------------*/
 
+#if defined(GL_BACKEND)
 #include <GLES/gl.h>
 //#include <GLES/glext.h>
+#endif
 
 struct OSWindowContext
 {
+#if defined(GL_BACKEND)
 	EGLDisplay 			eglDisp;
 	EGLSurface			eglSurf;
 	EGLContext			eglCtx;
 
 	GLuint				tex;
+#endif
 
 	screen_window_t		window;
+#if defined(GL_BACKEND)
     unsigned int*		tmp;
     int					tmpWidth;
     int					tmpHeight;
+#else
+    screen_buffer_t		pixelbuffer;
+    int					pixelBufferStride;
+    int					rect[4];
+#endif
 };
 
 void* OSCreateWindowContext(EGLNativeWindowType window)
@@ -161,17 +175,82 @@ void* OSCreateWindowContext(EGLNativeWindowType window)
 		return NULL;
 	}
 
+#if defined(GL_BACKEND)
 	if(!eglSetup(&(ctx->eglDisp), &(ctx->eglSurf), &(ctx->eglCtx), window))
 	{
 		RI_DELETE(ctx);
 		return NULL;
 	}
+#endif
 
     ctx->window = (screen_window_t)window;
+#if defined(GL_BACKEND)
     ctx->tmp = NULL;
     ctx->tmpWidth = 0;
     ctx->tmpHeight = 0;
     ctx->tex = 0;
+#else
+    screen_context_t context = NULL;
+    if(screen_get_window_property_pv(ctx->window, SCREEN_PROPERTY_CONTEXT, (void**)&context) != 0)
+    {
+    	RI_DELETE(ctx);
+		return NULL;
+    }
+    ctx->rect[0] = 0;
+    ctx->rect[1] = 0;
+    if(screen_get_window_property_iv(ctx->window, SCREEN_PROPERTY_BUFFER_SIZE, ctx->rect + 2) != 0)
+    {
+    	RI_DELETE(ctx);
+		return NULL;
+    }
+
+    //Create the pixmap
+    screen_pixmap_t pixmap;
+    if (screen_create_pixmap(&pixmap, context) != 0)
+    {
+    	RI_DELETE(ctx);
+		return NULL;
+	}
+
+	// A combination of write and native usage is necessary to blit the pixmap to screen.
+	int usage = SCREEN_USAGE_WRITE | SCREEN_USAGE_NATIVE;
+	if(screen_set_pixmap_property_iv(pixmap, SCREEN_PROPERTY_USAGE, &usage) != 0)
+	{
+		screen_destroy_pixmap(pixmap);
+		RI_DELETE(ctx);
+		return NULL;
+	}
+
+	int format = SCREEN_FORMAT_RGBX8888;
+	if (screen_set_pixmap_property_iv(pixmap, SCREEN_PROPERTY_BUFFER_SIZE, ctx->rect + 2) != 0 || screen_set_pixmap_property_iv(pixmap, SCREEN_PROPERTY_FORMAT, &format) != 0)
+	{
+		screen_destroy_pixmap(pixmap);
+		RI_DELETE(ctx);
+		return NULL;
+	}
+
+	if (screen_create_pixmap_buffer(pixmap) != 0)
+	{
+		screen_destroy_pixmap(pixmap);
+		RI_DELETE(ctx);
+		return NULL;
+	}
+	if (screen_get_pixmap_property_pv(pixmap, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&(ctx->pixelbuffer)) != 0)
+	{
+		screen_destroy_pixmap(pixmap);
+		RI_DELETE(ctx);
+		return NULL;
+	}
+
+	// We get the stride (the number of bytes between pixels on different rows), its used
+	// later on when we perform the rendering to the pixmap buffer.
+	if (screen_get_buffer_property_iv(ctx->pixelbuffer, SCREEN_PROPERTY_STRIDE, &(ctx->pixelBufferStride)) != 0)
+	{
+		screen_destroy_pixmap(pixmap);
+		RI_DELETE(ctx);
+		return NULL;
+	}
+#endif
     return ctx;
 }
 
@@ -180,6 +259,7 @@ void OSDestroyWindowContext(void* context)
     OSWindowContext* ctx = (OSWindowContext*)context;
     if(ctx)
     {
+#if defined(GL_BACKEND)
     	glDeleteTextures(1, &(ctx->tex));
     	if (ctx->eglDisp != EGL_NO_DISPLAY)
     	{
@@ -200,6 +280,9 @@ void OSDestroyWindowContext(void* context)
 		eglReleaseThread_impl();
 		eglCleanup();
         RI_DELETE_ARRAY(ctx->tmp);
+#else
+        //Everything gets cleaned up when the screen context is destroyed
+#endif
         RI_DELETE(ctx);
     }
 }
@@ -240,6 +323,12 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
         int w = drawable->getWidth();
         int h = drawable->getHeight();
 
+        //NOTE: we assume here that the display is always in sRGB color space
+		VGImageFormat f = VG_sXBGR_8888;
+		if(isBigEndian())
+			f = VG_sRGBX_8888;
+
+#if defined(GL_BACKEND)
         eglMakeCurrent_impl(ctx->eglDisp, ctx->eglSurf, ctx->eglSurf, ctx->eglCtx);
 
 #if !defined(GL_OES_texture_npot)
@@ -273,10 +362,6 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
             glLoadIdentity();
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
-            //NOTE: we assume here that the display is always in sRGB color space
-            VGImageFormat f = VG_sXBGR_8888;
-            if(isBigEndian())
-                f = VG_sRGBX_8888;
             vgReadPixels(ctx->tmp, w*sizeof(unsigned int), f, 0, 0,
 #if defined(GL_OES_texture_npot)
 				w, h);
@@ -327,6 +412,38 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
         }
 
         eglSwapBuffers_impl(ctx->eglDisp, ctx->eglSurf);
+#else
+        //XXX Format is BGR and is flipped vertically.
+
+        //Prepare for blit and get pointer
+        int noiseBlitParameters[] = { SCREEN_BLIT_SOURCE_WIDTH, ctx->rect[2], SCREEN_BLIT_SOURCE_HEIGHT, ctx->rect[3], SCREEN_BLIT_END };
+        void* ptr = NULL;
+        screen_context_t context = NULL;
+		if(screen_get_window_property_pv(ctx->window, SCREEN_PROPERTY_CONTEXT, (void**)&context) == 0 &&
+				screen_get_buffer_property_pv(ctx->pixelbuffer, SCREEN_PROPERTY_POINTER, (void **)&ptr) == 0)
+		{
+			//Get buffers
+			int count = 0;
+			screen_buffer_t* screen_bufs = NULL;
+			if(screen_get_window_property_iv(ctx->window, SCREEN_PROPERTY_BUFFER_COUNT, &count) == 0 && count > 0)
+			{
+				screen_bufs = (screen_buffer_t*)calloc(count, sizeof(screen_buffer_t));
+				if(screen_bufs)
+				{
+					if(screen_get_window_property_pv(ctx->window, SCREEN_PROPERTY_RENDER_BUFFERS, (void**)screen_bufs) == 0)
+					{
+						//Get data
+						vgReadPixels(ptr, ctx->pixelBufferStride, f, 0, 0, w, h);
+
+						//Blit
+						screen_blit(context, screen_bufs[0], ctx->pixelbuffer, noiseBlitParameters);
+						screen_post_window(ctx->window, screen_bufs[0], 1, ctx->rect, 0);
+					}
+					free(screen_bufs);
+				}
+			}
+		}
+#endif
     }
 }
 

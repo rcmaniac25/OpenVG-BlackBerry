@@ -21,16 +21,22 @@
 #include <fcntl.h>
 #include <screen/screen.h>
 
+#include <stdlib.h>
 #include <assert.h>
 #define UNREF(X) ((void)(X))
 
 #include <VG/openvg.h>
-#include <VG/vgu.h>
+#if defined(FAKE_VG)
 #include <EGLimp/egl.h>
+#else
+#include <EGL/egl.h>
+#endif
 
 #include "tiger.h"
 
 static bool shutdown;
+
+void render(int w, int h);
 
 static void
 handle_screen_event(bps_event_t *event)
@@ -47,13 +53,16 @@ handle_screen_event(bps_event_t *event)
     default:
         break;
     }
-    fprintf(stderr,"\n");
 }
 
 static void
-handle_navigator_event(bps_event_t *event) {
+handle_navigator_event(bps_event_t *event, int* size) {
     switch (bps_event_get_code(event)) {
     case NAVIGATOR_SWIPE_DOWN:
+    	if(!shutdown)
+		{
+			render(size[0], size[1]);
+		}
         break;
     case NAVIGATOR_EXIT:
         shutdown = true;
@@ -61,22 +70,21 @@ handle_navigator_event(bps_event_t *event) {
     default:
         break;
     }
-    fprintf(stderr,"\n");
 }
 
 static void
-handle_event()
+handle_event(int* size)
 {
     int domain;
 
     bps_event_t *event = NULL;
-    if (BPS_SUCCESS != bps_get_event(&event, -1)) {
+    if (BPS_SUCCESS != bps_get_event(&event, 0)) {
         return;
     }
     if (event) {
         domain = bps_event_get_domain(event);
         if (domain == navigator_get_domain()) {
-            handle_navigator_event(event);
+            handle_navigator_event(event, size);
         } else if (domain == screen_get_domain()) {
             handle_screen_event(event);
         }
@@ -399,7 +407,17 @@ void deinit(void)
 int
 main(int argc, char **argv)
 {
+	int bufferCount = 2;
+#if defined(FAKE_VG)
+#if defined(GL_BACKEND)
     const int usage = SCREEN_USAGE_OPENGL_ES1;
+#else
+    const int usage = SCREEN_USAGE_NATIVE;
+    bufferCount = 1;
+#endif
+#else
+    const int usage = SCREEN_USAGE_OPENVG;
+#endif
 
     int size[2];
     screen_context_t screen_ctx;
@@ -409,8 +427,8 @@ main(int argc, char **argv)
     screen_create_context(&screen_ctx, 0);
     screen_create_window(&screen_win, screen_ctx);
     screen_set_window_property_iv(screen_win, SCREEN_PROPERTY_USAGE, &usage);
-    screen_create_window_buffers(screen_win, 2);
-    screen_get_window_property_iv(screen_win, SCREEN_PROPERTY_VIEWPORT_SIZE, size);
+    screen_create_window_buffers(screen_win, bufferCount);
+    screen_get_window_property_iv(screen_win, SCREEN_PROPERTY_BUFFER_SIZE, size);
 
     init((NativeWindowType)screen_win);
 
@@ -419,13 +437,19 @@ main(int argc, char **argv)
     screen_request_events(screen_ctx);
     navigator_request_events(0);
 
-    while (!shutdown) {
+    //Make sure something is visible
+    eglSwapBuffers(egldisplay, eglsurface);
+
+    while (!shutdown)
+    {
         /* Handle user input */
-        handle_event();
-        render(size[0], size[1]);
+        handle_event(size);
     }
 
     /* Clean up */
+#if defined(FAKE_VG)
+    navigator_extend_terminate(); //Do this because the built ref impl is slow
+#endif
     deinit();
 
     screen_stop_events(screen_ctx);

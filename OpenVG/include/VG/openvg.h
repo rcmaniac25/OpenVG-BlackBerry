@@ -40,6 +40,12 @@
 extern "C" {
 #endif
 
+//Uncomment to use OpenGL as a backend. Note: This is only for blitting to the screen and does not do rendering with OpenGL
+#define GL_BACKEND
+
+//This is not the real OpenVG. It is a reference implementation provided by Khronos. Thus everything runs on the CPU and it is very slow
+#define FAKE_VG
+
 #define OPENVG_VERSION_1_0		1
 #define OPENVG_VERSION_1_0_1	1
 #define OPENVG_VERSION_1_1		2
