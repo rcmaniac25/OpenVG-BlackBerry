@@ -32,7 +32,6 @@
 
 #include <math.h>
 #include <EGLimp/egl.h>
-//#include <GLES/glext.h>
 #include "eglref.h"
 #include <screen/screen.h>
 #include "../riImage.h"
@@ -134,12 +133,15 @@ static bool isBigEndian()
 *//*-------------------------------------------------------------------*/
 
 #include <GLES/gl.h>
+//#include <GLES/glext.h>
 
 struct OSWindowContext
 {
 	EGLDisplay 			eglDisp;
 	EGLSurface			eglSurf;
 	EGLContext			eglCtx;
+
+	GLuint				tex;
 
 	screen_window_t		window;
     unsigned int*		tmp;
@@ -169,6 +171,7 @@ void* OSCreateWindowContext(EGLNativeWindowType window)
     ctx->tmp = NULL;
     ctx->tmpWidth = 0;
     ctx->tmpHeight = 0;
+    ctx->tex = 0;
     return ctx;
 }
 
@@ -177,6 +180,7 @@ void OSDestroyWindowContext(void* context)
     OSWindowContext* ctx = (OSWindowContext*)context;
     if(ctx)
     {
+    	glDeleteTextures(1, &(ctx->tex));
     	if (ctx->eglDisp != EGL_NO_DISPLAY)
     	{
 			eglMakeCurrent_impl(ctx->eglDisp, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -238,6 +242,13 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
 
         eglMakeCurrent_impl(ctx->eglDisp, ctx->eglSurf, ctx->eglSurf, ctx->eglCtx);
 
+#if !defined(GL_OES_texture_npot)
+		int ow = w;
+		int oh = h;
+
+		//Calculate next power of 2 (from Clemens: http://acius2.blogspot.com/2007/11/calculating-next-power-of-2.html, I'm pretty sure there is a way to do this without converting to floating point)
+		w = h = 1 << (int)ceil(log2(fmax(w, h)));
+#endif
         if(!ctx->tmp || ctx->tmpWidth != w || ctx->tmpHeight != h)
         {
             RI_DELETE_ARRAY(ctx->tmp);
@@ -256,9 +267,7 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
 
         if(ctx->tmp)
         {
-        	//This is not memory efficient...
-
-            glViewport(0, 0, w, h);
+        	glViewport(0, 0, w, h);
             glDisable(GL_DEPTH_TEST);
             glMatrixMode(GL_PROJECTION);
             glLoadIdentity();
@@ -268,50 +277,22 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
             VGImageFormat f = VG_sXBGR_8888;
             if(isBigEndian())
                 f = VG_sRGBX_8888;
-            vgReadPixels(ctx->tmp, w*sizeof(unsigned int), f, 0, 0, w, h);
-
-            //Generate texture
-            GLuint tex = 0;
-            glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_2D, tex);
-#if !defined(GL_OES_texture_npot)
-            int ow = w;
-			int oh = h;
-
-            //Calculate next power of 2 (from Clemens: http://acius2.blogspot.com/2007/11/calculating-next-power-of-2.html, I'm pretty sure there is a way to do this without converting to floating point)
-            int next_pow = 1 << (int)ceil(log2(fmax(w, h)));
-            w = h = next_pow;
-
-            //Generate a new texture data
-			unsigned int* tTex = NULL;
-			try
-			{
-				tTex = RI_NEW_ARRAY(unsigned int, w*h);	//throws bad_alloc
-			}
-			catch(std::bad_alloc&)
-			{
-				//do nothing
-			}
-
-			//Clear the texture
-			memset(tTex, 0xFF00FFFF, w*h*sizeof(unsigned int));
-
-			//Copy the texture
-			for(int y = 0; y < ow; y++)
-			{
-				memcpy(tTex + (y * w), ctx->tmp + (y * ow), ow*sizeof(unsigned int));
-			}
-#endif
-            //Allocate the texture
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+            vgReadPixels(ctx->tmp, w*sizeof(unsigned int), f, 0, 0,
 #if defined(GL_OES_texture_npot)
-            	ctx->tmp);
+				w, h);
 #else
-            tTex);
-
-			//Cleanup texture
-			RI_DELETE_ARRAY(tTex);
+            	ow, oh);
 #endif
+
+			if(ctx->tex == 0)
+			{
+				//Generate texture
+				glGenTextures(1, &(ctx->tex));
+			}
+            glBindTexture(GL_TEXTURE_2D, ctx->tex);
+
+            //Allocate the texture
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx->tmp);
             if(glGetError() == GL_NO_ERROR)
             {
 				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -322,23 +303,10 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
 						 1.0f, -1.0f,  1.0f,
 						-1.0f,  1.0f,  1.0f,
 						 1.0f,  1.0f,  1.0f};
-#if defined(GL_OES_texture_npot)
-				static const
-#endif
-				GLfloat planeUV[8] = {0.0f, 0.0f,
+				static const GLfloat planeUV[8] = {0.0f, 0.0f,
 						 1.0f, 0.0f,
 						 0.0f, 1.0f,
 						 1.0f, 1.0f};
-
-#if !defined(GL_OES_texture_npot)
-				//Calculate new UV corner
-				planeUV[2] = ((GLfloat)ow) / ((GLfloat)w);
-				planeUV[3] = ((GLfloat)oh) / ((GLfloat)h);
-
-				//Copy over uv value
-				planeUV[6] = planeUV[2]; //Upper right U coord
-				planeUV[1] = planeUV[3]; //Lower left V coord
-#endif
 
 				glEnable(GL_TEXTURE_2D);
 				glVertexPointer(3, GL_FLOAT, 0, plane);
@@ -350,11 +318,12 @@ void OSBlitToWindow(void* context, const Drawable* drawable)
 
 				//Draw texture
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-				glFlush();
-            }
+				glFinish();
 
-			//Cleanup
-			glDeleteTextures(1, &tex);
+				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+				glDisable(GL_TEXTURE_2D);
+            }
         }
 
         eglSwapBuffers_impl(ctx->eglDisp, ctx->eglSurf);
