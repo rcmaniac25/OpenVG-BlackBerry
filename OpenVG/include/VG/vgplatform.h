@@ -40,6 +40,11 @@ extern "C" {
 
 #include <KHR/khrplatform.h>
 
+//This is not the real OpenVG. It is a reference implementation provided by Khronos. Thus everything runs on the CPU and it is very slow
+#ifndef FAKE_VG
+#define FAKE_VG
+#endif
+
 #ifndef VG_API_CALL
 #define VG_API_CALL			KHRONOS_APICALL
 #endif

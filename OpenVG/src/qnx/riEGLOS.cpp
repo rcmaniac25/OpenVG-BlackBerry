@@ -290,10 +290,11 @@ void OSDestroyWindowContext(void* context)
 bool OSIsWindow(const void* context)
 {
     OSWindowContext* ctx = (OSWindowContext*)context;
+    int tmp;
     if(ctx)
     {
         if(ctx->window)
-            return true;
+        	return screen_get_window_property_iv(ctx->window, SCREEN_PROPERTY_VISIBLE, &tmp) == 0;
     }
     return false;
 }

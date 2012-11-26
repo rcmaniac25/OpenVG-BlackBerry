@@ -44,7 +44,9 @@ extern "C" {
 #define GL_BACKEND
 
 //This is not the real OpenVG. It is a reference implementation provided by Khronos. Thus everything runs on the CPU and it is very slow
+#ifndef FAKE_VG
 #define FAKE_VG
+#endif
 
 #define OPENVG_VERSION_1_0		1
 #define OPENVG_VERSION_1_0_1	1

@@ -42,6 +42,11 @@
 #ifndef __eglplatform_h_
 #define __eglplatform_h_
 
+//This is not the real EGL.
+#ifndef FAKE_EGL
+#define FAKE_EGL
+#endif
+
 #define EGLAPI
 #define EGLAPIENTRY        /* empty */
 
